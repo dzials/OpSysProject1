@@ -1,0 +1,13 @@
+
+
+    <======== Incoming Processes [FCFS Queue]
+
+    <======== Ready Queue [Queue Based on Scheduling Algorithm]
+
+    <======== Running Process [Check if burst is done - or RR decides its done]
+
+    <======== Blocked [Priority Queue based on blocking time]
+
+
+
+
