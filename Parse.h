@@ -22,7 +22,7 @@ public:
           int arrive, burst, nburst, IO;
           char *cstrLine = &line[0u];
           int breakNum = 0;
-          for(int i = 0; i < line.size(); ++i){
+          for(unsigned int i = 0; i < line.size(); ++i){
             char* temp;
             if(line[i] == '|') //Check if current character is a | to see what data is being read
               breakNum++;
@@ -47,8 +47,8 @@ public:
               breakNum++;
             }
           }
-          Process temp = new Process(n,arrive,burst,nburst,IO);
-          processes.insert(pair<string,Process>(n,temp));
+          Process* temp = new Process(n,arrive,burst,nburst,IO);
+          processes.insert(pair<string,Process>(n,*temp));
         }
       }
     }
