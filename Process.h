@@ -10,4 +10,6 @@ public:
   int IOtime;
 
   Process(string n, int arrive, int burst, int nburst, int IO);
+
+  void endBurst();
 };

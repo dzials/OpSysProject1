@@ -6,3 +6,7 @@ Process::Process(string n, int arrive, int burst, int nburst, int IO){
   num_burst = nburst;
   IOtime = IO;
 }
+
+void Process::endBurst() {
+	num_burst--;
+}
