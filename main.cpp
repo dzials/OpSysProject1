@@ -54,6 +54,21 @@ string printQueue() {
     return build + "]";
 }
 
+float calculate_waits() {
+    float sum = 0;
+    for (map<string, Process> iterator itr = processes.begin(); itr != processes.end(); ++itr)
+    {
+        sum += itr->second.total_wait;
+    }
+    return sum / n;
+}
+
+
+
+float calculate_turnaround() {
+    
+}
+
 void FCFS() {
     int term_cnt = 0;
     int current_process_burst_time = 0;
@@ -65,13 +80,14 @@ void FCFS() {
     fflush (stdout);
 
 
-    while (term_cnt < processes.size()) {
+    while (term_cnt < n) {
 
         // Find any processes that arrive at current time t and push process into queue
         map<string, Process>::iterator itr = processes.begin();
         while (itr->second.arrival_time <= t &&  itr != processes.end()) {
             if (itr->second.arrival_time == t) {
                 readyQueue.push_back(itr->second);
+                itr->second.ready_start = t;
                 printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
                 fflush (stdout);
             }
@@ -79,40 +95,78 @@ void FCFS() {
         }
 
 
+        // Handle blocking processes
+        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
+            /*
+            if (t == 605) {
+                cout << printQueue() << " " << itr2->second.end_blocking_time << endl;
+            }
+            if (t == 606) {
+                cout << printQueue() << " " << itr2->second.end_blocking_time << endl;
+            }
+            if (t == 607) {
+                cout << printQueue() << " " << itr2->second.end_blocking_time << endl;
+            }
+            */
+            if (t == itr2->second.end_blocking_time) {
+                itr2->second.end_blocking_time = -1;
+                readyQueue.push_back(itr2->second);
+                itr2->second.ready_start = t;
+                printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
+                fflush(stdout);
+                if (running == NULL) {
+                    context_switch_timer = t_cs / 2;
+                }
+            }
+            //cout << "time is: " << t << " " << itr2->second.p_name << " " << printQueue() << endl;
+        }
+
+
         // Take care of ready processes and currently running process
         if (current_process_burst_time == 0 && context_switch_timer > 0) {
-            if (context_switch_timer == t_cs) {
-                running->endBurst();
-                printf("time %dms: Process %s completed a CPU burst; %d bursts to go %s\n", t, running->p_name.c_str(), running->num_burst,  printQueue().c_str());
-                if (running->num_burst == 0) {
-                    printf("time %dms: Process %s terminated %s\n", t, running->p_name.c_str(), printQueue().c_str());
-                    term_cnt++;
-                } else {
-                    printf("time %dms: Process %s switching out of CPU; will block on I/O until time %dms %s\n", t, running->p_name.c_str(), t + running->IOtime + (t_cs / 2), printQueue().c_str());
-
-                }
-                running = NULL;
-            }
             // In a context switch out of the CPU, decrement timer
             context_switch_timer--;
         } else if (current_process_burst_time == 0 && context_switch_timer == 0){
             // Switch to new process
-            running = &readyQueue.front();
-            readyQueue.pop_front();
+            if (!readyQueue.empty()) {
 
-            printf("time %dms: Process %s started using the CPU %s\n", t, running->p_name.c_str(), printQueue().c_str());
+                running = &readyQueue.front();
+                readyQueue.pop_front();
+                processes.find(running->p_name)->second.total_wait += t - processes.find(running->p_name)->second.ready_start;
 
-            current_process_burst_time = running->burst_time;
-            context_switch_timer = t_cs;
+                printf("time %dms: Process %s started using the CPU %s\n", t, running->p_name.c_str(), printQueue().c_str());
+                fflush(stdout);
+
+                current_process_burst_time = running->burst_time;
+                context_switch_timer = t_cs -1;
+            }
         } else {
             current_process_burst_time--;
+            if (current_process_burst_time == 0 ) {
+                processes.find(running->p_name)->second.endBurst(t, t_cs);
+                if (processes.find(running->p_name)->second.num_burst == 0) {
+                    printf("time %dms: Process %s terminated %s\n", t, running->p_name.c_str(), printQueue().c_str());
+                    fflush(stdout);
+                    term_cnt++;
+                    if (term_cnt == n) {
+                        t += (t_cs / 2) - 1;
+                    }
+                    
+                } else {
+                    if (processes.find(running->p_name)->second.num_burst == 1) {
+                        printf("time %dms: Process %s completed a CPU burst; %d burst to go %s\n", t, running->p_name.c_str(), processes.find(running->p_name)->second.num_burst,  printQueue().c_str());
+                        fflush(stdout);
+                    } else {
+                        printf("time %dms: Process %s completed a CPU burst; %d bursts to go %s\n", t, running->p_name.c_str(), processes.find(running->p_name)->second.num_burst,  printQueue().c_str());
+                        fflush(stdout);
+                    }
+                    printf("time %dms: Process %s switching out of CPU; will block on I/O until time %dms %s\n", t, running->p_name.c_str(), t + running->IOtime + (t_cs / 2), printQueue().c_str());
+                    fflush(stdout);
+
+                }
+                running = NULL;
+            }
         }
-
-        // Handle blocking processes
-
-        #if 0
-            Penis18==========D~~~~dock(Penis2);
-        #endif
 
 
         t++;
