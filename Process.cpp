@@ -5,6 +5,7 @@ Process::Process(string n, int arrive, int burst, int nburst, int IO){
   arrival_time = arrive;
   burst_time = burst;
   num_burst = nburst;
+  total_bursts = nburst;
   IOtime = IO;
   end_blocking_time = -1;
   total_wait = 0;

@@ -56,9 +56,9 @@ string printQueue() {
 
 float calculate_waits() {
     float sum = 0;
-    for (map<string, Process> iterator itr = processes.begin(); itr != processes.end(); ++itr)
+    for (map<string, Process>::iterator itr = processes.begin(); itr != processes.end(); ++itr)
     {
-        sum += itr->second.total_wait;
+        sum += ((itr->second.total_wait));
     }
     return sum / n;
 }
@@ -66,14 +66,14 @@ float calculate_waits() {
 
 
 float calculate_turnaround() {
-    
+    return 0.0;
 }
 
 void FCFS() {
     int term_cnt = 0;
     int current_process_burst_time = 0;
     int context_switch_timer = t_cs / 2;
-    Process* running;
+    Process* running = NULL;
 
 
     printf("time %dms: Simulator started for FCFS %s\n", t, (printQueue()).c_str());
@@ -88,6 +88,9 @@ void FCFS() {
             if (itr->second.arrival_time == t) {
                 readyQueue.push_back(itr->second);
                 itr->second.ready_start = t;
+                if(running == NULL) {
+                    itr->second.ready_start = t + (t_cs/2);
+                }
                 printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
                 fflush (stdout);
             }
@@ -116,6 +119,8 @@ void FCFS() {
                 fflush(stdout);
                 if (running == NULL) {
                     context_switch_timer = t_cs / 2;
+                    itr2->second.ready_start = t + t_cs / 2;
+
                 }
             }
             //cout << "time is: " << t << " " << itr2->second.p_name << " " << printQueue() << endl;
@@ -188,6 +193,8 @@ int main(int argc, char const *argv[]) {
 
     reset();
     FCFS();
+
+    cout << calculate_waits() << endl;
 
     return 0;
 }
