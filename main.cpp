@@ -51,6 +51,12 @@ void reset() {
     readyQueue.clear(); //clear the queue (though it should already be empty)
     t = 0; //reset the timer
     cs = 0; //reset the number of context switches
+
+    map<string, Process>::iterator itr;
+    for(itr = processes.begin(); itr != processes.end(); ++itr) {
+        itr->second.reset();
+    }
+
 }
 
 string printQueue() {
@@ -118,7 +124,15 @@ float calculate_avg_CPU() {
 
 float calculate_turnaround() {
 
-    return calculate_waits() + calculate_avg_CPU() + t_cs;
+    //return calculate_waits() + calculate_avg_CPU() + t_cs;
+    float sum = 0;
+    float bursts = 0;
+    for (map<string, Process>::iterator itr = processes.begin(); itr != processes.end(); ++itr)
+    {
+        sum += (itr->second.turnaround);
+        bursts += itr->second.total_bursts;
+    }
+    return (sum / bursts) + (t_cs/2);
 }
 
 int calculate_pre() {
@@ -130,9 +144,7 @@ int calculate_pre() {
     return total;
 }
 
-void print_statistics(const char* filename, int x) {
-    ofstream output;
-    output.open(filename);
+void print_statistics(ofstream &output, int x) {
     if(x == 1)
         output << "Algorithm FCFS" << endl;
     else if(x == 2)
@@ -142,10 +154,14 @@ void print_statistics(const char* filename, int x) {
 
     output << "-- average CPU burst time: " << setprecision(2) << fixed << calculate_avg_CPU() << " ms" << endl;
     output << "-- average wait time: " << setprecision(2) << fixed << calculate_waits() << " ms" << endl;
-    output << "-- average turnaround time: " << setprecision(2) << fixed <<  calculate_turnaround() << " ms" << endl;
-    output << "-- total number of context siwtches: " << cs << endl;
+    if(x == 1) {
+        output << "-- average turnaround time: " << setprecision(2) << fixed <<  calculate_waits() + calculate_avg_CPU() + t_cs << " ms" << endl;
+    }
+    else {
+        output << "-- average turnaround time: " << setprecision(2) << fixed <<  calculate_turnaround() << " ms" << endl;
+    }
+    output << "-- total number of context switches: " << cs << endl;
     output << "-- total number of preemptions: " << calculate_pre() << endl;
-    output.close();
 }
 
 void FCFS() {
@@ -269,11 +285,13 @@ void SRT() {
                     running = &(itr->second);
                     pre = true;
                     context_switch_timer = t_cs;
+                    (processes.find(itr->second.p_name))->second.start_burst = t;
                 }
                 else {
                     itr->second.ready_start = t + (t_cs/2);
                     readyPQ.push(itr->second);
                     printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printPQueue()).c_str());
+                    (processes.find(itr->second.p_name))->second.start_burst = t;
                 }
                 fflush (stdout);
             }
@@ -294,12 +312,14 @@ void SRT() {
                     running = &(itr2->second);
                     pre = true;
                     context_switch_timer = t_cs;
+                    (processes.find(itr2->second.p_name))->second.start_burst = t;
                 }
                 else {
                     readyPQ.push(itr2->second);
                     itr2->second.ready_start = t + (t_cs/2);
                     printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printPQueue().c_str());
                     fflush(stdout);
+                    (processes.find(itr2->second.p_name))->second.start_burst = t;
                 }
                 if (running == NULL) {
                     context_switch_timer = t_cs / 2;
@@ -392,11 +412,17 @@ int main(int argc, char const *argv[]) {
     processes = Parse::read((string)argv[1]);
     n = processes.size();
 
+    ofstream output;
+    output.open(argv[2]);
+
     reset();
-    //FCFS();
-    //print_statistics(argv[2], 1);
-    //testPQ();
+    FCFS();
+    print_statistics(output, 1);
+    cout << endl;
+    reset();
     SRT();
-    print_statistics(argv[2], 2);
+    print_statistics(output, 2);
+
+    output.close();
     return 0;
 }

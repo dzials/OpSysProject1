@@ -13,6 +13,8 @@ Process::Process() {
     total_wait = 0;
     ready_start = 0;
     preemption_cnt = 0;
+    start_burst = 0;
+    turnaround = 0;
 }
 Process::Process(string n, int arrive, int burst, int nburst, int IO){
   p_name = n;
@@ -26,6 +28,8 @@ Process::Process(string n, int arrive, int burst, int nburst, int IO){
   total_wait = 0;
   ready_start = 0;
   preemption_cnt = 0;
+  start_burst = 0;
+  turnaround = 0;
 }
 
 void Process::copy_process(const Process &p) {
@@ -40,6 +44,8 @@ void Process::copy_process(const Process &p) {
     total_wait = p.total_wait;
     ready_start = p.ready_start;
     preemption_cnt = p.preemption_cnt;
+    start_burst = p.start_burst;
+    turnaround = p.turnaround;
 }
 
 void Process::endBurst(int t, int t_cs) {
@@ -49,5 +55,16 @@ void Process::endBurst(int t, int t_cs) {
 		end_blocking_time = -1;
 	}
     remaining = burst_time;
-	//std::cout << "enburstcall " << t  << " " << end_blocking_time << std::endl;
+    turnaround += (t - start_burst);
+}
+
+void Process::reset() {
+    remaining = burst_time;
+    num_burst = total_bursts;
+    end_blocking_time = -1;
+    total_wait = 0;
+    ready_start = 0;
+    preemption_cnt = 0;
+    start_burst = 0;
+    turnaround = 0;
 }

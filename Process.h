@@ -14,9 +14,12 @@ public:
   int total_wait;
   int preemption_cnt;
   int end_blocking_time;
+  int start_burst;
+  int turnaround;
 
   Process();
   Process(string n, int arrive, int burst, int nburst, int IO);
   void copy_process(const Process &p);
   void endBurst(int t, int t_cs);
+  void reset();
 };
