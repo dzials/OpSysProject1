@@ -260,17 +260,18 @@ void SRT() {
         map<string, Process>::iterator itr = processes.begin();
         while (itr->second.arrival_time <= t &&  itr != processes.end()) {
             if (itr->second.arrival_time == t) {
-                itr->second.ready_start = t + (t_cs/2);
                 if(running != NULL && itr->second.remaining < copy->remaining) {
                     (processes.find(copy->p_name))->second.preemption_cnt++;
                     (processes.find(copy->p_name))->second.remaining--;
                     printf("time %dms: Process %s arrived and will preempt %s %s\n", t, itr->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
+                    (processes.find(copy->p_name))->second.ready_start = t + (t_cs/2);
                     readyPQ.push((processes.find(copy->p_name))->second);
                     running = &(itr->second);
                     pre = true;
                     context_switch_timer = t_cs;
                 }
                 else {
+                    itr->second.ready_start = t + (t_cs/2);
                     readyPQ.push(itr->second);
                     printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printPQueue()).c_str());
                 }
@@ -289,6 +290,7 @@ void SRT() {
                     (processes.find(copy->p_name))->second.remaining--;
                     printf("time %dms: Process %s completed I/O and will preempt %s %s\n", t, itr2->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
                     readyPQ.push((processes.find(copy->p_name))->second);
+                    (processes.find(copy->p_name))->second.ready_start = t + (t_cs/2);
                     running = &(itr2->second);
                     pre = true;
                     context_switch_timer = t_cs;
