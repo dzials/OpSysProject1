@@ -154,12 +154,7 @@ void print_statistics(ofstream &output, int x) {
 
     output << "-- average CPU burst time: " << setprecision(2) << fixed << calculate_avg_CPU() << " ms" << endl;
     output << "-- average wait time: " << setprecision(2) << fixed << calculate_waits() << " ms" << endl;
-    if(x == 1) {
-        output << "-- average turnaround time: " << setprecision(2) << fixed <<  calculate_waits() + calculate_avg_CPU() + t_cs << " ms" << endl;
-    }
-    else {
-        output << "-- average turnaround time: " << setprecision(2) << fixed <<  calculate_turnaround() << " ms" << endl;
-    }
+    output << "-- average turnaround time: " << setprecision(2) << fixed << calculate_turnaround() << " ms" << endl;
     output << "-- total number of context switches: " << cs << endl;
     output << "-- total number of preemptions: " << calculate_pre() << endl;
 }
@@ -185,6 +180,7 @@ void FCFS() {
                 readyQueue.push_back(itr->second);
                 printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
                 fflush (stdout);
+                (processes.find(itr->second.p_name))->second.start_burst = t;
             }
             itr++;
         }
@@ -198,6 +194,7 @@ void FCFS() {
                 itr2->second.ready_start = t + (t_cs/2);
                 printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
                 fflush(stdout);
+                (processes.find(itr2->second.p_name))->second.start_burst = t;
                 if (running == NULL) {
                     context_switch_timer = t_cs / 2;
                 }
