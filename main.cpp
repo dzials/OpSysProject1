@@ -142,7 +142,7 @@ void print_statistics(const char* filename, int x) {
 
     output << "-- average CPU burst time: " << setprecision(2) << fixed << calculate_avg_CPU() << " ms" << endl;
     output << "-- average wait time: " << setprecision(2) << fixed << calculate_waits() << " ms" << endl;
-    output << "-- average CPU burst time: " << setprecision(2) << fixed <<  calculate_turnaround() << " ms" << endl;
+    output << "-- average turnaround time: " << setprecision(2) << fixed <<  calculate_turnaround() << " ms" << endl;
     output << "-- total number of context siwtches: " << cs << endl;
     output << "-- total number of preemptions: " << calculate_pre() << endl;
     output.close();
@@ -264,7 +264,7 @@ void SRT() {
                     (processes.find(copy->p_name))->second.preemption_cnt++;
                     (processes.find(copy->p_name))->second.remaining--;
                     printf("time %dms: Process %s arrived and will preempt %s %s\n", t, itr->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
-                    (processes.find(copy->p_name))->second.ready_start = t + (t_cs/2);
+                    (processes.find(copy->p_name))->second.ready_start = t;
                     readyPQ.push((processes.find(copy->p_name))->second);
                     running = &(itr->second);
                     pre = true;
@@ -289,8 +289,8 @@ void SRT() {
                     (processes.find(copy->p_name))->second.preemption_cnt++;
                     (processes.find(copy->p_name))->second.remaining--;
                     printf("time %dms: Process %s completed I/O and will preempt %s %s\n", t, itr2->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
+                    (processes.find(copy->p_name))->second.ready_start = t;
                     readyPQ.push((processes.find(copy->p_name))->second);
-                    (processes.find(copy->p_name))->second.ready_start = t + (t_cs/2);
                     running = &(itr2->second);
                     pre = true;
                     context_switch_timer = t_cs;
