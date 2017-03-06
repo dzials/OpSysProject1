@@ -1,3 +1,7 @@
+/*
+  Contributors: Stephen Dzialo (dzials), Yarden Ne'eman (neemay), Tyler Peláez (pelaet)
+*/
+
 #include <iostream>
 #include <deque>
 #include <queue>
@@ -7,9 +11,6 @@
 
 using namespace std;
 
-/*
-  Contributors: Stephen Dzialo, Yarden Ne'eman, Tyler Peláez
-*/
 //Class to define custom Priority Queue comparison
 class myPQComparator {
     public:
@@ -165,6 +166,7 @@ void FCFS() {
     int current_process_burst_time = 0;
     int context_switch_timer = t_cs / 2;
     Process* running = NULL;
+    bool tie = false;
 
 
     printf("time %dms: Simulator started for FCFS %s\n", t, (printQueue()).c_str());
@@ -172,36 +174,6 @@ void FCFS() {
 
 
     while (term_cnt < n) {
-
-        // Find any processes that arrive at current time t and push process into queue
-        map<string, Process>::iterator itr = processes.begin();
-        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
-            if (itr->second.arrival_time == t) {
-                itr->second.ready_start = t + (t_cs/2);
-                readyQueue.push_back(itr->second);
-                printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
-                fflush (stdout);
-                (processes.find(itr->second.p_name))->second.start_burst = t;
-            }
-            itr++;
-        }
-
-
-        // Handle blocking processes
-        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
-            if (t == itr2->second.end_blocking_time) {
-                itr2->second.end_blocking_time = -1;
-                readyQueue.push_back(itr2->second);
-                itr2->second.ready_start = t + (t_cs/2);
-                printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
-                fflush(stdout);
-                (processes.find(itr2->second.p_name))->second.start_burst = t;
-                if (running == NULL) {
-                    context_switch_timer = t_cs / 2;
-                }
-            }
-        }
-
 
         // Take care of ready processes and currently running process
         if (current_process_burst_time == 0 && context_switch_timer > 0) {
@@ -246,8 +218,41 @@ void FCFS() {
 
                 }
                 running = NULL;
+                tie = true;
             }
         }
+
+        // Handle blocking processes
+        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
+            if (t == itr2->second.end_blocking_time) {
+                itr2->second.end_blocking_time = -1;
+                readyQueue.push_back(itr2->second);
+                itr2->second.ready_start = t + (t_cs/2);
+                printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
+                fflush(stdout);
+                (processes.find(itr2->second.p_name))->second.start_burst = t;
+                if (running == NULL) {
+                    context_switch_timer = (t_cs / 2) - 1;
+                }
+                if(running == NULL && tie) {
+                    context_switch_timer = t_cs - 1;
+                }
+            }
+        }
+
+        // Find any processes that arrive at current time t and push process into queue
+        map<string, Process>::iterator itr = processes.begin();
+        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
+            if (itr->second.arrival_time == t) {
+                itr->second.ready_start = t + (t_cs/2);
+                readyQueue.push_back(itr->second);
+                printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
+                fflush (stdout);
+                (processes.find(itr->second.p_name))->second.start_burst = t;
+            }
+            itr++;
+        }
+        tie = false;
         t++;
     }
     printf("time %dms: Simulator ended for FCFS\n", t);
@@ -262,6 +267,7 @@ void SRT() {
     const Process* running = NULL;
     Process* copy = new Process();
     bool pre = false;
+    bool tie = false;
 
 
     printf("time %dms: Simulator started for SRT %s\n", t, (printPQueue()).c_str());
@@ -269,67 +275,6 @@ void SRT() {
 
 
     while (term_cnt < n) {
-
-        // Find any processes that arrive at current time t and push process into queue
-        map<string, Process>::iterator itr = processes.begin();
-        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
-            if (itr->second.arrival_time == t) {
-                // New process has arrived
-                if(running != NULL && itr->second.remaining < (processes.find(copy->p_name))->second.remaining) {
-                    // The newly arrived process has shorter remaining time than
-                    // the process currently running, preemption occurs
-                    (processes.find(copy->p_name))->second.preemption_cnt++;
-                    (processes.find(copy->p_name))->second.remaining--;
-                    printf("time %dms: Process %s arrived and will preempt %s %s\n", t, itr->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
-                    (processes.find(copy->p_name))->second.ready_start = t;
-                    readyPQ.push((processes.find(copy->p_name))->second);
-                    running = &(itr->second);
-                    pre = true;
-                    context_switch_timer = t_cs;
-                    (processes.find(itr->second.p_name))->second.start_burst = t;
-                }
-                else {
-                    itr->second.ready_start = t + (t_cs/2);
-                    readyPQ.push(itr->second);
-                    printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printPQueue()).c_str());
-                    (processes.find(itr->second.p_name))->second.start_burst = t;
-                }
-                fflush (stdout);
-            }
-            itr++;
-        }
-
-
-        // Handle blocking processes
-        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
-            if (t == itr2->second.end_blocking_time) {
-                // A process comes out of blocking at current time
-                itr2->second.end_blocking_time = -1;
-                if(running != NULL && itr2->second.remaining < (processes.find(copy->p_name))->second.remaining) {
-                    // Check if newly arrived process preempts the current process
-                    (processes.find(copy->p_name))->second.preemption_cnt++;
-                    (processes.find(copy->p_name))->second.remaining--;
-                    printf("time %dms: Process %s completed I/O and will preempt %s %s\n", t, itr2->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
-                    (processes.find(copy->p_name))->second.ready_start = t;
-                    readyPQ.push((processes.find(copy->p_name))->second);
-                    running = &(itr2->second);
-                    pre = true;
-                    context_switch_timer = t_cs;
-                    (processes.find(itr2->second.p_name))->second.start_burst = t;
-                }
-                else {
-                    readyPQ.push(itr2->second);
-                    itr2->second.ready_start = t + (t_cs/2);
-                    printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printPQueue().c_str());
-                    fflush(stdout);
-                    (processes.find(itr2->second.p_name))->second.start_burst = t;
-                }
-                if (running == NULL) {
-                    context_switch_timer = t_cs / 2;
-                }
-            }
-        }
-
 
         // Take care of ready processes and currently running process
         if ((current_process_burst_time == 0 && context_switch_timer > 0) || (pre && context_switch_timer > 0)) {
@@ -398,14 +343,77 @@ void SRT() {
 
                 }
                 running = NULL;
+                tie = true;
             }
         }
+
+        // Handle blocking processes
+        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
+            if (t == itr2->second.end_blocking_time) {
+                // A process comes out of blocking at current time
+                itr2->second.end_blocking_time = -1;
+                if(running != NULL && itr2->second.remaining < (processes.find(copy->p_name))->second.remaining) {
+                    // Check if newly arrived process preempts the current process
+                    (processes.find(copy->p_name))->second.preemption_cnt++;
+                    //(processes.find(copy->p_name))->second.remaining--;
+                    printf("time %dms: Process %s completed I/O and will preempt %s %s\n", t, itr2->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
+                    (processes.find(copy->p_name))->second.ready_start = t;
+                    readyPQ.push((processes.find(copy->p_name))->second);
+                    running = &(itr2->second);
+                    pre = true;
+                    context_switch_timer = t_cs - 1;
+                    (processes.find(itr2->second.p_name))->second.start_burst = t;
+                }
+                else {
+                    readyPQ.push(itr2->second);
+                    itr2->second.ready_start = t + (t_cs/2);
+                    printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printPQueue().c_str());
+                    fflush(stdout);
+                    (processes.find(itr2->second.p_name))->second.start_burst = t;
+                }
+                if (running == NULL) {
+                    context_switch_timer = (t_cs / 2) - 1;
+                }
+                if(running == NULL && tie) {
+                    context_switch_timer = t_cs - 1;
+                }
+            }
+        }
+
+        // Find any processes that arrive at current time t and push process into queue
+        map<string, Process>::iterator itr = processes.begin();
+        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
+            if (itr->second.arrival_time == t) {
+                // New process has arrived
+                if(running != NULL && itr->second.remaining < (processes.find(copy->p_name))->second.remaining) {
+                    // The newly arrived process has shorter remaining time than
+                    // the process currently running, preemption occurs
+                    (processes.find(copy->p_name))->second.preemption_cnt++;
+                    //(processes.find(copy->p_name))->second.remaining--;
+                    printf("time %dms: Process %s arrived and will preempt %s %s\n", t, itr->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
+                    (processes.find(copy->p_name))->second.ready_start = t;
+                    readyPQ.push((processes.find(copy->p_name))->second);
+                    running = &(itr->second);
+                    pre = true;
+                    context_switch_timer = t_cs - 1;
+                    (processes.find(itr->second.p_name))->second.start_burst = t;
+                }
+                else {
+                    itr->second.ready_start = t + (t_cs/2);
+                    readyPQ.push(itr->second);
+                    printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printPQueue()).c_str());
+                    (processes.find(itr->second.p_name))->second.start_burst = t;
+                }
+                fflush (stdout);
+            }
+            itr++;
+        }
+        tie = false;
         t++;
     }
     printf("time %dms: Simulator ended for SRT\n", t);
     fflush (stdout);
 }
-
 
 void RR() {
     int term_cnt = 0;
@@ -414,6 +422,7 @@ void RR() {
     int current_t_slice = 0;
     Process* running = NULL;
     bool pre = false;
+    bool tie = false;
 
 
     printf("time %dms: Simulator started for RR %s\n", t, (printQueue()).c_str());
@@ -422,35 +431,6 @@ void RR() {
 
     while (term_cnt < n) {
 
-        // Find any processes that arrive at current time t and push process into queue
-        map<string, Process>::iterator itr = processes.begin();
-        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
-            if (itr->second.arrival_time == t) {
-                itr->second.ready_start = t + (t_cs/2);
-                readyQueue.push_back(itr->second);
-                printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
-                fflush (stdout);
-                (processes.find(itr->second.p_name))->second.start_burst = t;
-            }
-            itr++;
-        }
-
-
-        // Handle blocking processes
-        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
-            if (t == itr2->second.end_blocking_time) {
-                itr2->second.end_blocking_time = -1;
-                readyQueue.push_back(itr2->second);
-                itr2->second.ready_start = t + (t_cs/2);
-                printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
-                fflush(stdout);
-                (processes.find(itr2->second.p_name))->second.start_burst = t;
-                if (running == NULL) {
-                    context_switch_timer = t_cs / 2;
-                }
-            }
-        }
-        
         if (current_t_slice == t_slice && !readyQueue.empty() && current_process_burst_time != 1) {
             // Current process gets preempted
             (processes.find(running->p_name))->second.preemption_cnt++;
@@ -551,16 +531,47 @@ void RR() {
 
                 }
                 running = NULL;
+                tie = true;
             }
         }
+
+        // Handle blocking processes
+        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
+            if (t == itr2->second.end_blocking_time) {
+                itr2->second.end_blocking_time = -1;
+                readyQueue.push_back(itr2->second);
+                itr2->second.ready_start = t + (t_cs/2);
+                printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
+                fflush(stdout);
+                (processes.find(itr2->second.p_name))->second.start_burst = t;
+                if (running == NULL) {
+                    context_switch_timer = (t_cs / 2) - 1;
+                }
+                if(running == NULL && tie) {
+                    context_switch_timer = t_cs - 1;
+                }
+            }
+        }
+
+        // Find any processes that arrive at current time t and push process into queue
+        map<string, Process>::iterator itr = processes.begin();
+        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
+            if (itr->second.arrival_time == t) {
+                itr->second.ready_start = t + (t_cs/2);
+                readyQueue.push_back(itr->second);
+                printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
+                fflush (stdout);
+                (processes.find(itr->second.p_name))->second.start_burst = t;
+            }
+            itr++;
+        }
+        tie = false;
         t++;
     }
     printf("time %dms: Simulator ended for RR\n", t);
     fflush (stdout);
 
 }
-
-
 
 int main(int argc, char const *argv[]) {
     if(argc == 1){

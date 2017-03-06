@@ -1,3 +1,7 @@
+/*
+  Contributors: Stephen Dzialo (dzials), Yarden Ne'eman (neemay), Tyler Peláez (pelaet)
+*/
+
 #include <string>
 using namespace std;
 
