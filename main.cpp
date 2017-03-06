@@ -100,6 +100,7 @@ void testPQ () {
     }
 }
 
+
 float calculate_waits() {
     float sum = 0;
     float bursts = 0;
@@ -273,7 +274,10 @@ void SRT() {
         map<string, Process>::iterator itr = processes.begin();
         while (itr->second.arrival_time <= t &&  itr != processes.end()) {
             if (itr->second.arrival_time == t) {
+                // New process has arrived
                 if(running != NULL && itr->second.remaining < copy->remaining) {
+                    // The newly arrived process has shorter remaining time than
+                    // the process currently running, preemption occurs
                     (processes.find(copy->p_name))->second.preemption_cnt++;
                     (processes.find(copy->p_name))->second.remaining--;
                     printf("time %dms: Process %s arrived and will preempt %s %s\n", t, itr->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
@@ -299,8 +303,10 @@ void SRT() {
         // Handle blocking processes
         for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
             if (t == itr2->second.end_blocking_time) {
+                // A process comes out of blocking at current time
                 itr2->second.end_blocking_time = -1;
                 if(running != NULL && itr2->second.remaining < copy->remaining) {
+                    // Check if newly arrived process preempts the current process
                     (processes.find(copy->p_name))->second.preemption_cnt++;
                     (processes.find(copy->p_name))->second.remaining--;
                     printf("time %dms: Process %s completed I/O and will preempt %s %s\n", t, itr2->second.p_name.c_str(), copy->p_name.c_str(), (printPQueue()).c_str());
@@ -400,6 +406,161 @@ void SRT() {
     fflush (stdout);
 }
 
+
+void RR() {
+    int term_cnt = 0;
+    int current_process_burst_time = 0;
+    int context_switch_timer = t_cs / 2;
+    int current_t_slice = 0;
+    Process* running = NULL;
+    bool pre = false;
+
+
+    printf("time %dms: Simulator started for RR %s\n", t, (printQueue()).c_str());
+    fflush (stdout);
+
+
+    while (term_cnt < n) {
+
+        // Find any processes that arrive at current time t and push process into queue
+        map<string, Process>::iterator itr = processes.begin();
+        while (itr->second.arrival_time <= t &&  itr != processes.end()) {
+            if (itr->second.arrival_time == t) {
+                itr->second.ready_start = t + (t_cs/2);
+                readyQueue.push_back(itr->second);
+                printf("time %dms: Process %s arrived and added to ready queue %s\n", t, itr->second.p_name.c_str(), (printQueue()).c_str());
+                fflush (stdout);
+                (processes.find(itr->second.p_name))->second.start_burst = t;
+            }
+            itr++;
+        }
+
+
+        // Handle blocking processes
+        for (map<string, Process>::iterator itr2 = processes.begin(); itr2 != processes.end(); ++itr2) {
+            if (t == itr2->second.end_blocking_time) {
+                itr2->second.end_blocking_time = -1;
+                readyQueue.push_back(itr2->second);
+                itr2->second.ready_start = t + (t_cs/2);
+                printf("time %dms: Process %s completed I/O; added to ready queue %s\n", t, itr2->second.p_name.c_str(), printQueue().c_str());
+                fflush(stdout);
+                (processes.find(itr2->second.p_name))->second.start_burst = t;
+                if (running == NULL) {
+                    context_switch_timer = t_cs / 2;
+                }
+            }
+        }
+
+        if (current_t_slice == t_slice && !readyQueue.empty()) {
+            // Current process gets preempted
+            (processes.find(running->p_name))->second.preemption_cnt++;
+            (processes.find(running->p_name))->second.remaining--;
+            
+            printf("time %dms: Time slice expired; process %s preempted with %dms to go %s\n", t, running->p_name.c_str(), (processes.find(running->p_name))->second.remaining, printQueue().c_str());
+
+            
+
+            (processes.find(running->p_name))->second.ready_start = t - (t_cs / 2);
+            readyQueue.push_back((processes.find(running->p_name))->second);
+
+
+
+            running = &(readyQueue.front());
+            readyQueue.pop_front();
+
+            processes.find(running->p_name)->second.total_wait += (t - (processes.find(running->p_name)->second.ready_start));
+
+            pre = true;
+            context_switch_timer = t_cs;
+
+            current_t_slice = 0;
+
+        } else if (current_t_slice == t_slice) {
+            printf("time %dms: Time slice expired; no preemption because ready queue is empty %s\n", t, printQueue().c_str());
+            current_t_slice = 0;
+        }
+
+        // Take care of ready processes and currently running process
+        if ((current_process_burst_time == 0 && context_switch_timer > 0) || (pre && context_switch_timer > 0)) {
+            // In a context switch out of the CPU, decrement timer
+            context_switch_timer--;
+        } else if ((current_process_burst_time == 0 && context_switch_timer == 0) || (pre && context_switch_timer == 0)) {
+            // Switch to new process
+            if (!readyQueue.empty() && !pre) {
+                cs++;
+                running = &readyQueue.front();
+                readyQueue.pop_front();
+                processes.find(running->p_name)->second.total_wait += (t - (processes.find(running->p_name)->second.ready_start));
+
+                if(running->burst_time == running->remaining) {
+                    printf("time %dms: Process %s started using the CPU %s\n", t, running->p_name.c_str(), printQueue().c_str());
+                    fflush(stdout);
+                    current_process_burst_time = running->burst_time;
+                }
+                else {
+                    printf("time %dms: Process %s started using the CPU with %dms remaining %s\n", t, running->p_name.c_str(), running->remaining, printQueue().c_str());
+                    fflush(stdout);
+                    current_process_burst_time = running->remaining;
+                }
+
+                context_switch_timer = t_cs -1;
+                current_t_slice = 1;
+            } else if(pre && context_switch_timer == 0) {
+                cs++;
+
+                if(processes.find(running->p_name)->second.burst_time == processes.find(running->p_name)->second.remaining) {
+                    printf("time %dms: Process %s started using the CPU %s\n", t, running->p_name.c_str(), printQueue().c_str());
+                    fflush(stdout);
+                    current_process_burst_time = running->burst_time;
+                }
+                else {
+                    printf("time %dms: Process %s started using the CPU with %dms remaining %s\n", t, running->p_name.c_str(), running->remaining, printQueue().c_str());
+                    fflush(stdout);
+                    current_process_burst_time = running->remaining;
+                }
+                context_switch_timer = t_cs - 1;
+                current_t_slice = 1;
+                pre = false;
+            }
+        } else {
+            current_process_burst_time--;
+            (processes.find(running->p_name))->second.remaining--;
+            current_t_slice++;
+            if (current_process_burst_time == 0 ) {
+                current_t_slice = 0;
+                processes.find(running->p_name)->second.endBurst(t, t_cs);
+                if (processes.find(running->p_name)->second.num_burst == 0) {
+                    printf("time %dms: Process %s terminated %s\n", t, running->p_name.c_str(), printQueue().c_str());
+                    fflush(stdout);
+                    term_cnt++;
+                    if (term_cnt == n) {
+                        t += (t_cs / 2) - 1;
+                    }
+
+                } else {
+                    if (processes.find(running->p_name)->second.num_burst == 1) {
+                        printf("time %dms: Process %s completed a CPU burst; %d burst to go %s\n", t, running->p_name.c_str(), processes.find(running->p_name)->second.num_burst,  printQueue().c_str());
+                        fflush(stdout);
+                    } else {
+                        printf("time %dms: Process %s completed a CPU burst; %d bursts to go %s\n", t, running->p_name.c_str(), processes.find(running->p_name)->second.num_burst,  printQueue().c_str());
+                        fflush(stdout);
+                    }
+                    printf("time %dms: Process %s switching out of CPU; will block on I/O until time %dms %s\n", t, running->p_name.c_str(), t + running->IOtime + (t_cs / 2), printQueue().c_str());
+                    fflush(stdout);
+
+                }
+                running = NULL;
+            }
+        }
+        t++;
+    }
+    printf("time %dms: Simulator ended for RR\n", t);
+    fflush (stdout);
+
+}
+
+
+
 int main(int argc, char const *argv[]) {
     if(argc == 1){
         cerr << "ERROR: Invalid arguments" << endl;
@@ -419,6 +580,11 @@ int main(int argc, char const *argv[]) {
     reset();
     SRT();
     print_statistics(output, 2);
+    cout << endl;
+    reset();
+    RR();
+    print_statistics(output, 3);
+
 
     output.close();
     return 0;
