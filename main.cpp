@@ -275,7 +275,7 @@ void SRT() {
         while (itr->second.arrival_time <= t &&  itr != processes.end()) {
             if (itr->second.arrival_time == t) {
                 // New process has arrived
-                if(running != NULL && itr->second.remaining < copy->remaining) {
+                if(running != NULL && itr->second.remaining < (processes.find(copy->p_name))->second.remaining) {
                     // The newly arrived process has shorter remaining time than
                     // the process currently running, preemption occurs
                     (processes.find(copy->p_name))->second.preemption_cnt++;
@@ -305,7 +305,7 @@ void SRT() {
             if (t == itr2->second.end_blocking_time) {
                 // A process comes out of blocking at current time
                 itr2->second.end_blocking_time = -1;
-                if(running != NULL && itr2->second.remaining < copy->remaining) {
+                if(running != NULL && itr2->second.remaining < (processes.find(copy->p_name))->second.remaining) {
                     // Check if newly arrived process preempts the current process
                     (processes.find(copy->p_name))->second.preemption_cnt++;
                     (processes.find(copy->p_name))->second.remaining--;
@@ -344,13 +344,13 @@ void SRT() {
                 readyPQ.pop();
                 processes.find(copy->p_name)->second.total_wait += (t - (processes.find(copy->p_name)->second.ready_start));
 
-                if(copy->burst_time == copy->remaining) {
+                if(copy->burst_time == (processes.find(copy->p_name))->second.remaining) {
                     printf("time %dms: Process %s started using the CPU %s\n", t, copy->p_name.c_str(), printPQueue().c_str());
                     fflush(stdout);
                     current_process_burst_time = copy->burst_time;
                 }
                 else {
-                    printf("time %dms: Process %s started using the CPU with %dms remaining %s\n", t, copy->p_name.c_str(), copy->remaining, printPQueue().c_str());
+                    printf("time %dms: Process %s started using the CPU with %dms remaining %s\n", t, copy->p_name.c_str(), (processes.find(copy->p_name))->second.remaining, printPQueue().c_str());
                     fflush(stdout);
                     current_process_burst_time = copy->remaining;
                 }
@@ -359,13 +359,13 @@ void SRT() {
             else if(pre && context_switch_timer == 0) {
                 cs++;
                 copy->copy_process(*running);
-                if(copy->burst_time == copy->remaining) {
+                if(copy->burst_time == (processes.find(copy->p_name))->second.remaining) {
                     printf("time %dms: Process %s started using the CPU %s\n", t, copy->p_name.c_str(), printPQueue().c_str());
                     fflush(stdout);
                     current_process_burst_time = copy->burst_time;
                 }
                 else {
-                    printf("time %dms: Process %s started using the CPU with %dms remaining %s\n", t, copy->p_name.c_str(), copy->remaining, printPQueue().c_str());
+                    printf("time %dms: Process %s started using the CPU with %dms remaining %s\n", t, copy->p_name.c_str(), (processes.find(copy->p_name))->second.remaining, printPQueue().c_str());
                     fflush(stdout);
                     current_process_burst_time = copy->remaining;
                 }
@@ -455,10 +455,10 @@ void RR() {
             // Current process gets preempted
             (processes.find(running->p_name))->second.preemption_cnt++;
             (processes.find(running->p_name))->second.remaining--;
-            
+
             printf("time %dms: Time slice expired; process %s preempted with %dms to go %s\n", t, running->p_name.c_str(), (processes.find(running->p_name))->second.remaining, printQueue().c_str());
 
-            
+
 
             (processes.find(running->p_name))->second.ready_start = t - (t_cs / 2);
             readyQueue.push_back((processes.find(running->p_name))->second);
