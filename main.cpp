@@ -450,8 +450,8 @@ void RR() {
                 }
             }
         }
-
-        if (current_t_slice == t_slice && !readyQueue.empty()) {
+        
+        if (current_t_slice == t_slice && !readyQueue.empty() && current_process_burst_time != 1) {
             // Current process gets preempted
             (processes.find(running->p_name))->second.preemption_cnt++;
             (processes.find(running->p_name))->second.remaining--;
@@ -475,7 +475,7 @@ void RR() {
 
             current_t_slice = 0;
 
-        } else if (current_t_slice == t_slice) {
+        } else if (current_t_slice == t_slice && current_process_burst_time != 1) {
             printf("time %dms: Time slice expired; no preemption because ready queue is empty %s\n", t, printQueue().c_str());
             current_t_slice = 0;
         }
@@ -526,6 +526,7 @@ void RR() {
             current_process_burst_time--;
             (processes.find(running->p_name))->second.remaining--;
             current_t_slice++;
+
             if (current_process_burst_time == 0 ) {
                 current_t_slice = 0;
                 processes.find(running->p_name)->second.endBurst(t, t_cs);
